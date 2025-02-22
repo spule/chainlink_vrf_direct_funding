@@ -19,6 +19,7 @@ contract VRFV2PlusWrapperTest is BaseTest {
   VRFV2PlusWrapper private s_wrapper;
   VRFV2PlusWrapperConsumerExample private s_consumer;
   //
+
   function setUp() public override {
     BaseTest.setUp();
     // Fund our users
@@ -46,7 +47,7 @@ contract VRFV2PlusWrapperTest is BaseTest {
       address(0), // no need for native feed
       address(s_testCoordinator),
       s_wrapperSubscriptionId
-      );
+    );
     // Configure wrapper
     s_wrapper.setConfig(
       wrapperGasOverhead, // wrapper gas overhead
@@ -61,15 +62,12 @@ contract VRFV2PlusWrapperTest is BaseTest {
       50000000000000000, // fallbackWeiPerUnitLink
       0, // fulfillmentFlatFeeNativePPM
       0 // fulfillmentFlatFeeLinkDiscountPPM
-    );  
-    s_wrapper.enable();  
+    );
+    s_wrapper.enable();
     // Add and deploy consumer
-    s_testCoordinator.addConsumer(uint256(s_wrapperSubscriptionId), address(s_wrapper));    
-    s_consumer = new VRFV2PlusWrapperConsumerExample(address(s_wrapper));  
-
+    s_testCoordinator.addConsumer(uint256(s_wrapperSubscriptionId), address(s_wrapper));
+    s_consumer = new VRFV2PlusWrapperConsumerExample(address(s_wrapper));
   }
-
-
 
   function testNative() public {
     // Fund subscription.
@@ -80,22 +78,21 @@ contract VRFV2PlusWrapperTest is BaseTest {
     uint256 expectedPaid = s_wrapper.calculateRequestPriceNative(callbackGasLimit, 3);
     // Request randomness from wrapper.
     uint256 requestId = s_consumer.makeRequestNative(callbackGasLimit, 0, 3);
-    // Verify if 
-    (uint256 paid, bool fulfilled, ) = s_consumer.s_requests(requestId);    
+    // Verify if
+    (uint256 paid, bool fulfilled,) = s_consumer.s_requests(requestId);
     assertEq(paid, expectedPaid);
     //
     vm.startPrank(address(s_testCoordinator));
     uint256[] memory words = new uint256[](3);
     for (uint256 i = 0; i < 3; i++) {
-        words[i] = uint256(keccak256(abi.encode(requestId,i)));
-      }
+      words[i] = uint256(keccak256(abi.encode(requestId, i)));
+    }
     s_wrapper.rawFulfillRandomWords(requestId, words);
     uint256[] memory randWords;
     (, fulfilled, randWords) = s_consumer.getRequestStatus(requestId);
     assertEq(fulfilled, true);
     for (uint256 i = 0; i < 3; i++) {
-        assertEq(words[i], randWords[i]); 
-      }
-
+      assertEq(words[i], randWords[i]);
+    }
   }
 }
