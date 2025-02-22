@@ -64,12 +64,6 @@ contract DirectFundingConsumer is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
   }
 }
 
-
-
-
-
-
-
 contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
   event WrappedRequestFulfilled(uint256 requestId, uint256[] randomWords, uint256 payment);
   event WrapperRequestMade(uint256 indexed requestId, uint256 paid);
@@ -100,11 +94,10 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
     return requestId;
   }
 
-
-  function spin() external payable returns (uint256 requestId){
+  function spin() external payable returns (uint256 requestId) {
     require(msg.value >= 0.01 ether, "0.01 ether to play");
     uint32 callbackGasLimit = 250_000;
-    uint16 requestConfirmations = 3; 
+    uint16 requestConfirmations = 3;
     uint32 numWords = 3;
     bytes memory extraArgs = VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: true}));
     uint256 paid;
@@ -114,12 +107,13 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
     return requestId;
   }
 
-
-  function getCombo(uint256 _requestId) external view returns (uint256[] memory combo) {
+  function getCombo(
+    uint256 _requestId
+  ) external view returns (uint256[] memory combo) {
     require(s_requests[_requestId].paid > 0, "request not found");
     RequestStatus memory request = s_requests[_requestId];
     combo = request.randomWords;
-    for(uint256 i = 0; i <3; i++){
+    for (uint256 i = 0; i < 3; i++) {
       combo[i] = combo[i] % 3;
     }
     return combo;
@@ -153,10 +147,3 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
     emit Received(msg.sender, msg.value);
   }
 }
-
-
-
-
-
-
-

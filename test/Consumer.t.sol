@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {DirectFundingConsumer,SlotMachine} from "../src/Consumer.sol";
+import {DirectFundingConsumer, SlotMachine} from "../src/Consumer.sol";
 import {BaseTest} from "../test/BaseTest.t.sol";
 import {VRFV2PlusWrapper} from "@chainlink/contracts/vrf/dev/VRFV2PlusWrapper.sol";
 import {ExposedVRFCoordinatorV2_5} from "@chainlink/contracts/vrf/dev/testhelpers/ExposedVRFCoordinatorV2_5.sol";
@@ -82,7 +82,7 @@ contract VRFV2PlusWrapperTest is BaseTest {
     uint256 requestId = s_consumer.makeRequestNative(callbackGasLimit, 0, 3);
     // Verify if
     (uint256 paid, bool fulfilled,) = s_consumer.s_requests(requestId);
-    assertEq(paid,expectedPaid);
+    assertEq(paid, expectedPaid);
     //
     vm.startPrank(address(s_testCoordinator));
     uint256[] memory words = new uint256[](3);
@@ -105,36 +105,37 @@ contract VRFV2PlusWrapperTest is BaseTest {
   }
 
   function testSlotMachine() public {
-    uint256 nUsers = 3; uint256 nWords = 3;
+    uint256 nUsers = 3;
+    uint256 nWords = 3;
     address[] memory addr = getRandomAddresses(nUsers);
     // Fund users
-    for (uint256 i = 0; i < nUsers; i++){vm.deal(addr[i], 1 ether);}
+    for (uint256 i = 0; i < nUsers; i++) {
+      vm.deal(addr[i], 1 ether);
+    }
     // All users spin
     uint256[] memory requestId = new uint256[](nUsers);
-    for (uint256 i = 0; i < nUsers; i++){
+    for (uint256 i = 0; i < nUsers; i++) {
       vm.startPrank(addr[i]);
-      requestId[i] = slotMachine.spin{value:0.01 ether}();
+      requestId[i] = slotMachine.spin{value: 0.01 ether}();
       //console.log(requestId[i]);
-      }
+    }
     // Provide random numbers
     vm.startPrank(address(s_testCoordinator));
-    for (uint256 i = 0; i < nUsers; i++){
+    for (uint256 i = 0; i < nUsers; i++) {
       uint256[] memory words = new uint256[](nWords);
       for (uint256 j = 0; j < nWords; j++) {
         words[j] = uint256(keccak256(abi.encode(requestId[i], j)));
       }
       s_wrapper.rawFulfillRandomWords(requestId[i], words);
     }
-    // Get radnom numbers 
-    for (uint256 i = 0; i < nUsers; i++){
+    // Get radnom numbers
+    for (uint256 i = 0; i < nUsers; i++) {
       vm.startPrank(addr[i]);
       uint256[] memory combo = slotMachine.getCombo(requestId[i]);
       console.log(combo[0]);
-      }
-
+    }
 
     // Final balance
-    console.log(address(slotMachine).balance/1e15);
-
+    console.log(address(slotMachine).balance / 1e15);
   }
 }
