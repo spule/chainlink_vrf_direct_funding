@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {VRFV2PlusWrapperConsumerExample} from "../src/Consumer.sol";
+import {DirectFundingConsumer,SlotMachine} from "../src/Consumer.sol";
 import {BaseTest} from "../test/BaseTest.t.sol";
 import {VRFV2PlusWrapper} from "@chainlink/contracts/vrf/dev/VRFV2PlusWrapper.sol";
 import {ExposedVRFCoordinatorV2_5} from "@chainlink/contracts/vrf/dev/testhelpers/ExposedVRFCoordinatorV2_5.sol";
@@ -17,7 +17,8 @@ contract VRFV2PlusWrapperTest is BaseTest {
   ExposedVRFCoordinatorV2_5 private s_testCoordinator;
   uint256 private s_wrapperSubscriptionId;
   VRFV2PlusWrapper private s_wrapper;
-  VRFV2PlusWrapperConsumerExample private s_consumer;
+  DirectFundingConsumer private s_consumer;
+  SlotMachine private slotMachine;
   //
 
   function setUp() public override {
@@ -64,12 +65,13 @@ contract VRFV2PlusWrapperTest is BaseTest {
       0 // fulfillmentFlatFeeLinkDiscountPPM
     );
     s_wrapper.enable();
-    // Add and deploy consumer
     s_testCoordinator.addConsumer(uint256(s_wrapperSubscriptionId), address(s_wrapper));
-    s_consumer = new VRFV2PlusWrapperConsumerExample(address(s_wrapper));
+    // Add and deploy consumer
+    s_consumer = new DirectFundingConsumer(address(s_wrapper));
+    slotMachine = new SlotMachine(address(s_wrapper));
   }
 
-  function testNative() public {
+  function testNativeConsumer() public {
     // Fund subscription.
     s_testCoordinator.fundSubscriptionWithNative{value: 10 ether}(s_wrapperSubscriptionId);
     vm.deal(address(s_consumer), 10 ether);
@@ -80,7 +82,7 @@ contract VRFV2PlusWrapperTest is BaseTest {
     uint256 requestId = s_consumer.makeRequestNative(callbackGasLimit, 0, 3);
     // Verify if
     (uint256 paid, bool fulfilled,) = s_consumer.s_requests(requestId);
-    assertEq(paid, expectedPaid);
+    assertEq(paid,expectedPaid);
     //
     vm.startPrank(address(s_testCoordinator));
     uint256[] memory words = new uint256[](3);
@@ -94,5 +96,45 @@ contract VRFV2PlusWrapperTest is BaseTest {
     for (uint256 i = 0; i < 3; i++) {
       assertEq(words[i], randWords[i]);
     }
+    // Withdraw funds from wrapper
+    vm.startPrank(LINK_WHALE);
+    uint256 priorWhaleBalance = LINK_WHALE.balance;
+    s_wrapper.withdrawNative(LINK_WHALE);
+    assertEq(LINK_WHALE.balance, priorWhaleBalance + paid);
+    assertEq(address(s_wrapper).balance, 0);
+  }
+
+  function testSlotMachine() public {
+    uint256 nUsers = 3; uint256 nWords = 3;
+    address[] memory addr = getRandomAddresses(nUsers);
+    // Fund users
+    for (uint256 i = 0; i < nUsers; i++){vm.deal(addr[i], 1 ether);}
+    // All users spin
+    uint256[] memory requestId = new uint256[](nUsers);
+    for (uint256 i = 0; i < nUsers; i++){
+      vm.startPrank(addr[i]);
+      requestId[i] = slotMachine.spin{value:0.01 ether}();
+      //console.log(requestId[i]);
+      }
+    // Provide random numbers
+    vm.startPrank(address(s_testCoordinator));
+    for (uint256 i = 0; i < nUsers; i++){
+      uint256[] memory words = new uint256[](nWords);
+      for (uint256 j = 0; j < nWords; j++) {
+        words[j] = uint256(keccak256(abi.encode(requestId[i], j)));
+      }
+      s_wrapper.rawFulfillRandomWords(requestId[i], words);
+    }
+    // Get radnom numbers 
+    for (uint256 i = 0; i < nUsers; i++){
+      vm.startPrank(addr[i]);
+      uint256[] memory combo = slotMachine.getCombo(requestId[i]);
+      console.log(combo[0]);
+      }
+
+
+    // Final balance
+    console.log(address(slotMachine).balance/1e15);
+
   }
 }
