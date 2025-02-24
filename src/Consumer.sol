@@ -75,6 +75,12 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
     bool native;
   }
 
+  uint32 internal constant callbackGasLimit = 250_000;
+  uint16 internal constant requestConfirmations = 3;
+  uint32 internal constant numWords = 3;
+
+  uint256 internal funds = 0;
+
   mapping(uint256 => RequestStatus) /* requestId */ /* requestStatus */ public s_requests;
 
   constructor(
@@ -94,27 +100,45 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
     return requestId;
   }
 
+  event Spin(address, uint256);
+
   function spin() external payable returns (uint256 requestId) {
-    require(msg.value >= 0.01 ether, "0.01 ether to play");
-    uint32 callbackGasLimit = 250_000;
-    uint16 requestConfirmations = 3;
-    uint32 numWords = 3;
+    require(msg.value >= 0.005 ether, "0.005 ether to play");
     bytes memory extraArgs = VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: true}));
     uint256 paid;
     (requestId, paid) = requestRandomnessPayInNative(callbackGasLimit, requestConfirmations, numWords, extraArgs);
     s_requests[requestId] = RequestStatus({paid: paid, randomWords: new uint256[](0), fulfilled: false, native: true});
     emit WrapperRequestMade(requestId, paid);
+    funds += 0.004 ether - paid;
+    emit Spin(msg.sender, funds);
     return requestId;
   }
 
+  event Jackpot(address, uint256);
+
   function getCombo(
     uint256 _requestId
-  ) external view returns (uint256[] memory combo) {
+  ) external returns (uint256[] memory combo) {
     require(s_requests[_requestId].paid > 0, "request not found");
     RequestStatus memory request = s_requests[_requestId];
     combo = request.randomWords;
-    for (uint256 i = 0; i < 3; i++) {
+    for (uint256 i = 0; i < numWords; i++) {
       combo[i] = combo[i] % 3;
+    }
+    // check if jackpot
+    bool jackpot = true;
+    uint256 firstValue = combo[0];
+    for (uint256 i = 1; i < numWords; i++) {
+      if (combo[i] != firstValue) {
+        jackpot = false;
+        break;
+      }
+    }
+    if (jackpot) {
+      (bool success,) = msg.sender.call{value: funds}("Jackpot");
+      require(success, "Failed to send the reward");
+      emit Jackpot(msg.sender, funds);
+      funds = 0;
     }
     return combo;
   }
@@ -137,13 +161,14 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
   function withdrawNative(
     uint256 amount
   ) external onlyOwner {
-    (bool success,) = payable(owner()).call{value: amount}("");
+    (bool success,) = payable(owner()).call{value: amount}("Withdraw");
     require(success, "withdrawNative failed");
   }
 
   event Received(address, uint256);
 
   receive() external payable {
+    funds += msg.value;
     emit Received(msg.sender, msg.value);
   }
 }

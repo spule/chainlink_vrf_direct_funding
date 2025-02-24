@@ -8,8 +8,9 @@ import {ExposedVRFCoordinatorV2_5} from "@chainlink/contracts/vrf/dev/testhelper
 import {Test, Vm, console} from "forge-std/Test.sol";
 
 contract VRFV2PlusWrapperTest is BaseTest {
+  uint256 internal constant kwei = 1e15;
   address internal constant LINK_WHALE = 0xD883a6A1C22fC4AbFE938a5aDF9B2Cc31b1BF18B;
-  bytes32 private vrfKeyHash = hex"9f2353bde94264dbc3d554a94cceba2d7d2b4fdce4304d3e09a1fea9fbeb1528";
+  bytes32 private constant vrfKeyHash = hex"9f2353bde94264dbc3d554a94cceba2d7d2b4fdce4304d3e09a1fea9fbeb1528";
   uint32 private wrapperGasOverhead = 100_000;
   uint32 private coordinatorGasOverheadNative = 200_000;
   uint32 private coordinatorGasOverheadLink = 220_000;
@@ -105,37 +106,46 @@ contract VRFV2PlusWrapperTest is BaseTest {
   }
 
   function testSlotMachine() public {
-    uint256 nUsers = 3;
+    string memory logString;
+    uint256 nUsers = 50;
     uint256 nWords = 3;
     address[] memory addr = getRandomAddresses(nUsers);
     // Fund users
     for (uint256 i = 0; i < nUsers; i++) {
       vm.deal(addr[i], 1 ether);
     }
-    // All users spin
+    // Set gas price
+    vm.txGasPrice(1 gwei);
     uint256[] memory requestId = new uint256[](nUsers);
     for (uint256 i = 0; i < nUsers; i++) {
+      // All users spin
       vm.startPrank(addr[i]);
-      requestId[i] = slotMachine.spin{value: 0.01 ether}();
-      //console.log(requestId[i]);
-    }
-    // Provide random numbers
-    vm.startPrank(address(s_testCoordinator));
-    for (uint256 i = 0; i < nUsers; i++) {
+      requestId[i] = slotMachine.spin{value: 0.005 ether}();
+      vm.stopPrank();
+      // Provide random numbers
+      vm.startPrank(address(s_testCoordinator));
       uint256[] memory words = new uint256[](nWords);
       for (uint256 j = 0; j < nWords; j++) {
         words[j] = uint256(keccak256(abi.encode(requestId[i], j)));
       }
       s_wrapper.rawFulfillRandomWords(requestId[i], words);
-    }
-    // Get radnom numbers
-    for (uint256 i = 0; i < nUsers; i++) {
+      vm.stopPrank();
+      // Get radnom numbers
       vm.startPrank(addr[i]);
       uint256[] memory combo = slotMachine.getCombo(requestId[i]);
-      console.log(combo[0]);
+      vm.stopPrank();
     }
-
     // Final balance
-    console.log(address(slotMachine).balance / 1e15);
+    uint256 contractBalance = address(slotMachine).balance / 1 gwei;
+    logString = string(abi.encodePacked("Slot machine balance -> ", vm.toString(contractBalance), " gwei"));
+    console.logString(logString);
+    for (uint256 i = 0; i < nUsers; i++) {
+      uint256 accountBalance = addr[i].balance / 1 gwei;
+      if (accountBalance != 995000000) {
+        logString =
+          string(abi.encodePacked("Address ", vm.toString(addr[i]), " -> ", vm.toString(accountBalance), " gwei"));
+        console.logString(logString);
+      }
+    }
   }
 }

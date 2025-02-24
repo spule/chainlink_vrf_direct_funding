@@ -9,6 +9,7 @@ remappings = [
 gas_price = 1
 optimizer = true
 optimizer_runs = 500
+gas_reports = ["*"]
 
 [fmt]
 tab_width = 2
