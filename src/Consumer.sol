@@ -110,21 +110,32 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
     transferToFunds = _transferToFunds;
   }
 
-  function updateFunds(uint256 _updateFunds) external onlyOwner {
+  function updateFunds(
+    uint256 _updateFunds
+  ) external onlyOwner {
     funds += _updateFunds;
   }
 
-  function getMinPayForPlay() external view returns(uint256) {return minPayForPlay;}
+  function getMinPayForPlay() external view returns (uint256) {
+    return minPayForPlay;
+  }
 
-  function getFunds() external view returns(uint256) {return funds;}
+  function getFunds() external view returns (uint256) {
+    return funds;
+  }
 
   function spin() external payable returns (uint256 requestId) {
     require(msg.value >= minPayForPlay, "Minimal pay for play not fulfilled");
     bytes memory extraArgs = VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: true}));
     uint256 paid;
     (requestId, paid) = requestRandomnessPayInNative(callbackGasLimit, requestConfirmations, numWords, extraArgs);
-    s_requests[requestId] = RequestStatus({paid: paid, randomWords: new uint256[](0), fulfilled: false, native: true, 
-      playerAddress: msg.sender});
+    s_requests[requestId] = RequestStatus({
+      paid: paid,
+      randomWords: new uint256[](0),
+      fulfilled: false,
+      native: true,
+      playerAddress: msg.sender
+    });
     emit WrapperRequestMade(requestId, paid);
     funds += transferToFunds - paid;
     return requestId;
@@ -154,11 +165,9 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
       require(success, "Failed to send the reward");
       emit Jackpot(s_requests[_requestId].playerAddress, s_requests[_requestId].randomWords);
       funds = 0;
-    } 
-    else{
-      emit NoHit(s_requests[_requestId].playerAddress,s_requests[_requestId].randomWords);
+    } else {
+      emit NoHit(s_requests[_requestId].playerAddress, s_requests[_requestId].randomWords);
     }
-
   }
 
   function getRequestStatus(

@@ -133,9 +133,8 @@ contract VRFV2PlusWrapperTest is BaseTest {
       // Get random numbers
       vm.startPrank(addr[i]);
       (, bool reqFulfilled, uint256[] memory reqNumbers) = slotMachine.getRequestStatus(requestId[i]);
-      require(reqFulfilled,"request must be fulfilled");
+      require(reqFulfilled, "request must be fulfilled");
       vm.stopPrank();
-
     }
     // Final balance
     uint256 contractBalance = address(slotMachine).balance / 1 gwei;

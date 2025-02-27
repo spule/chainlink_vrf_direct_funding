@@ -13,7 +13,7 @@ contract DeploySlotMachine is Script {
     address wrapperAddress = vm.envAddress("WRAPPER_ADDRESS");
 
     vm.startBroadcast();
-    slotMachine = new SlotMachine(wrapperAddress); 
+    slotMachine = new SlotMachine(wrapperAddress);
     vm.stopBroadcast();
   }
 }
