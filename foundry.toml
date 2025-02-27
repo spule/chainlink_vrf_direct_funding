@@ -8,7 +8,8 @@ remappings = [
 ]
 gas_price = 1
 optimizer = true
-optimizer_runs = 500
+optimizer_runs = 10_000_000 #500
+via_ir = true
 gas_reports = ["*"]
 
 [fmt]
@@ -16,3 +17,9 @@ tab_width = 2
 multiline_func_header = "params_first"
 sort_imports = true
 single_line_statement_blocks = "preserve"
+
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }

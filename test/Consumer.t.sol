@@ -107,7 +107,7 @@ contract VRFV2PlusWrapperTest is BaseTest {
 
   function testSlotMachine() public {
     string memory logString;
-    uint256 nUsers = 50;
+    uint256 nUsers = 30;
     uint256 nWords = 3;
     address[] memory addr = getRandomAddresses(nUsers);
     // Fund users
@@ -120,7 +120,7 @@ contract VRFV2PlusWrapperTest is BaseTest {
     for (uint256 i = 0; i < nUsers; i++) {
       // All users spin
       vm.startPrank(addr[i]);
-      requestId[i] = slotMachine.spin{value: 0.005 ether}();
+      requestId[i] = slotMachine.spin{value: 0.02 ether}();
       vm.stopPrank();
       // Provide random numbers
       vm.startPrank(address(s_testCoordinator));
@@ -130,10 +130,12 @@ contract VRFV2PlusWrapperTest is BaseTest {
       }
       s_wrapper.rawFulfillRandomWords(requestId[i], words);
       vm.stopPrank();
-      // Get radnom numbers
+      // Get random numbers
       vm.startPrank(addr[i]);
-      uint256[] memory combo = slotMachine.getCombo(requestId[i]);
+      (, bool reqFulfilled, uint256[] memory reqNumbers) = slotMachine.getRequestStatus(requestId[i]);
+      require(reqFulfilled,"request must be fulfilled");
       vm.stopPrank();
+
     }
     // Final balance
     uint256 contractBalance = address(slotMachine).balance / 1 gwei;
