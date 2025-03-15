@@ -64,9 +64,13 @@ contract DirectFundingConsumer is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
   }
 }
 
+// how to disable a contract?
+
 contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
   event WrappedRequestFulfilled(uint256 requestId, uint256[] randomWords, uint256 payment);
   event WrapperRequestMade(uint256 indexed requestId, uint256 paid);
+  event NoHit(address player, uint256 pay, uint256[] comb);
+  event Jackpot(address player, uint256 ret, uint256[] comb);
 
   struct RequestStatus {
     uint256 paid;
@@ -75,24 +79,35 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
     bool native;
     address playerAddress;
   }
+  // move to constructor?
 
-  uint32 internal callbackGasLimit = 250_000;
-  uint16 internal requestConfirmations = 3;
-  uint32 internal numWords = 3;
-  uint32 internal numComb = 3;
-  uint256 internal minPayForPlay = 0.02 ether;
-  uint256 internal transferToFunds = 0.015 ether;
+  uint32 internal callbackGasLimit;
+  uint16 internal requestConfirmations;
+  uint32 internal numWords;
+  uint32 internal numComb;
+  uint256 internal minPayForPlay;
+  uint256 internal transferToFunds;
 
   uint256 internal funds = 0;
 
   mapping(uint256 => RequestStatus) /* requestId */ /* requestStatus */ public s_requests;
 
-  event NoHit(address player, uint256[] comb);
-  event Jackpot(address player, uint256[] winComb);
-
   constructor(
-    address _vrfV2Wrapper
-  ) ConfirmedOwner(msg.sender) VRFV2PlusWrapperConsumerBase(_vrfV2Wrapper) {}
+    address _vrfV2Wrapper, 
+    uint32 _callbackGasLimit, // 250_000
+    uint16 _requestConfirmations, // sepolia: min 3, arbitrum sepolia: min 0
+    uint32 _numWords, // 3
+    uint32 _numComb, // 4
+    uint256 _minPayForPlay, //  sepolia: 0.02 ether, arbitrum sepolia: 0.005 ether?
+    uint256 _transferToFunds // sepolia: 0.015 ether, arbitrum sepolia: 0.004 ether?
+  ) ConfirmedOwner(msg.sender) VRFV2PlusWrapperConsumerBase(_vrfV2Wrapper) {
+    callbackGasLimit = _callbackGasLimit;
+    requestConfirmations = _requestConfirmations;
+    numWords = _numWords;
+    numComb = _numComb;
+    minPayForPlay = _minPayForPlay;
+    transferToFunds = _transferToFunds;
+  }
 
   function updateParameters(
     uint32 _callbackGasLimit,
@@ -136,14 +151,14 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
       native: true,
       playerAddress: msg.sender
     });
-    emit WrapperRequestMade(requestId, paid);
+    emit WrapperRequestMade(requestId, paid); // is it necessary
     funds += transferToFunds - paid;
     return requestId;
   }
 
   function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal override {
     require(s_requests[_requestId].paid > 0, "request not found");
-    emit WrappedRequestFulfilled(_requestId, _randomWords, s_requests[_requestId].paid);
+    emit WrappedRequestFulfilled(_requestId, _randomWords, s_requests[_requestId].paid); // is it necessary
     s_requests[_requestId].fulfilled = true;
     s_requests[_requestId].randomWords = _randomWords;
     for (uint256 i = 0; i < numWords; i++) {
@@ -163,10 +178,11 @@ contract SlotMachine is VRFV2PlusWrapperConsumerBase, ConfirmedOwner {
       require(funds < address(this).balance, "Insufficent funds");
       (bool success,) = s_requests[_requestId].playerAddress.call{value: funds}("Jackpot");
       require(success, "Failed to send the reward");
-      emit Jackpot(s_requests[_requestId].playerAddress, s_requests[_requestId].randomWords);
+      emit Jackpot(s_requests[_requestId].playerAddress, funds, s_requests[_requestId].randomWords);
       funds = 0;
     } else {
-      emit NoHit(s_requests[_requestId].playerAddress, s_requests[_requestId].randomWords);
+      // here we would need to emit minPayForPalay + txn fee
+      emit NoHit(s_requests[_requestId].playerAddress, minPayForPlay, s_requests[_requestId].randomWords);
     }
   }
 

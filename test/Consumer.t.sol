@@ -69,7 +69,7 @@ contract VRFV2PlusWrapperTest is BaseTest {
     s_testCoordinator.addConsumer(uint256(s_wrapperSubscriptionId), address(s_wrapper));
     // Add and deploy consumer
     s_consumer = new DirectFundingConsumer(address(s_wrapper));
-    slotMachine = new SlotMachine(address(s_wrapper));
+    slotMachine = new SlotMachine(address(s_wrapper),250_000,3,3,4,0.02 ether,0.015 ether);
   }
 
   function testNativeConsumer() public {

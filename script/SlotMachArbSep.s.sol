@@ -10,10 +10,10 @@ contract DeploySlotMachine is Script {
   function setUp() public {}
 
   function run() external {
-    address wrapperAddress = vm.envAddress("WRAPPER_ADDRESS");
+    address wrapperAddress = vm.envAddress("WRAPPER_ADDRESS_ARB");
 
     vm.startBroadcast();
-    slotMachine = new SlotMachine(wrapperAddress,250_000,3,3,4,0.02 ether,0.015 ether);
+    slotMachine = new SlotMachine(wrapperAddress,250_000,1,3,4,0.005 ether,0.004 ether);
     vm.stopBroadcast();
   }
 }
